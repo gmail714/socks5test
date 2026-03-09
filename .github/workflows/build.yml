@@ -1,0 +1,50 @@
+name: Build Proxy Checker Neo
+
+# 触发条件：推送到 main 分支，或在网页手动触发
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: 
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        # 同时在 Linux 和 Windows 上构建
+        os: [ubuntu-latest, windows-latest]
+    
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: 获取代码 (Checkout)
+      uses: actions/checkout@v4
+
+    - name: 设置 Python 环境
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: 安装系统依赖 (仅限 Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-tk
+
+    - name: 安装 Python 依赖库
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller customtkinter geoip2 requests "requests[socks]"
+
+    - name: 使用 PyInstaller 打包
+      run: |
+        # -F: 单文件
+        # -w: 隐藏控制台黑框 (Windowed)
+        # -n: 指定输出文件名为 ProxyCheckerNeo
+        # --collect-all: 确保 customtkinter 的主题和组件被完整打包
+        pyinstaller -F -w -n ProxyCheckerNeo --collect-all customtkinter main.py
+
+    - name: 上传打包好的文件
+      uses: actions/upload-artifact@v4
+      with:
+        name: ProxyCheckerNeo-${{ matrix.os }}
+        path: dist/*
